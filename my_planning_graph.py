@@ -303,7 +303,6 @@ class PlanningGraph():
         :return:
             adds A nodes to the current level in self.a_levels[level]
         """
-        # TODO add action A level to the planning graph as described in the Russell-Norvig text
         # 1. determine what actions to add and create those PgNode_a objects
         # 2. connect the nodes to the previous S literal level
         # for example, the A0 level will iterate through all possible actions for the problem and add a PgNode_a to a_levels[0]
@@ -312,11 +311,17 @@ class PlanningGraph():
         #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
 
         self.a_levels.append(set())
+        s_level = self.s_levels[level]
+        a_level = self.a_levels[level]
 
         for action in self.all_actions:
             current_action_node = PgNode_a(action)
-            if current_action_node.prenodes.issubset(self.s_levels[level]):
-                self.a_levels[level].add(current_action_node)
+            if current_action_node.prenodes <= s_level:
+                a_level.add(current_action_node)
+                for s in s_level:
+                    s.children.add(current_action_node)
+                    current_action_node.parents.add(s)
+
 
 
     def add_literal_level(self, level):
@@ -328,7 +333,6 @@ class PlanningGraph():
         :return:
             adds S nodes to the current level in self.s_levels[level]
         """
-        # TODO add literal S level to the planning graph as described in the Russell-Norvig text
         # 1. determine what literals to add
         # 2. connect the nodes
         # for example, every A node in the previous level has a list of S nodes in effnodes that represent the effect
@@ -340,11 +344,12 @@ class PlanningGraph():
         self.s_levels.append(set())
 
         lastActionLevel = level - 1
-        for action in self.a_levels[lastActionLevel]:
+        a_level = self.a_levels[lastActionLevel]
+        for action in a_level:
             for literal_node in action.effnodes:
+                action.children.add(literal_node)
+                literal_node.parents.add(action)
                 self.s_levels[level].add(literal_node)
-
-
 
     def update_a_mutex(self, nodeset):
         """ Determine and update sibling mutual exclusion for A-level nodes
@@ -402,7 +407,6 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        # TODO test for Inconsistent Effects between nodes
         action_a1 = node_a1.action
         action_a2 = node_a2.action
 
@@ -412,14 +416,6 @@ class PlanningGraph():
 
         for eff in action_a1.effect_rem:
             if eff in action_a2.effect_add:
-                return True
-
-        for eff in action_a2.effect_add:
-            if eff in action_a1.effect_rem:
-                return True
-
-        for eff in action_a2.effect_rem:
-            if eff in action_a1.effect_add:
                 return True
 
         return False
@@ -469,9 +465,6 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-
-        # TODO test for Competing Needs between nodes
-
         precond1_list = node_a1.parents
         precond2_list = node_a2.parents
 
@@ -514,7 +507,6 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for negation between nodes
 
         return (node_s1.is_pos != node_s2.is_pos and
                 node_s1.symbol == node_s2.symbol)
@@ -535,7 +527,6 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        # TODO test for Inconsistent Support between nodes
 
         action_list1 = node_s1.parents
         action_list2 = node_s2.parents
@@ -555,7 +546,6 @@ class PlanningGraph():
         """
         level_sum = 0
 
-        # TODO implement
         # for each goal in the problem, determine the level cost, then add them together
 
         all_goals = set(self.problem.goal)
@@ -565,5 +555,6 @@ class PlanningGraph():
                 if node_s.symbol in all_goals and node_s.is_pos == True:
                     level_sum += level_num
                     all_goals.remove(node_s.symbol)
+                    break
 
         return level_sum
